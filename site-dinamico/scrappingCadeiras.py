@@ -27,16 +27,17 @@ import time
 from selenium.common.exceptions import TimeoutException
 
 # Definir o caminho do chromedriver
-chrome_driver_path = "C:\Program Files\chromedriver-win64\chromedriver.exe"
+caminho_driver = "C:\Program Files\chromedriver-win64\chromedriver.exe"
 
 # Configurarção do WebDriver
-service = Service(chrome_driver_path) # Navegador controlado pelo selenium
-options = webdriver.ChromeOptions() # Configurar as opções do navegador
-options.add_argument("--disable-gpu") # Evita possíveis gráficos
-options.add_argument("--window-size=1920,1080") # Define uma resolução fixa
+service = Service(caminho_driver) # Navegador controlado pelo selenium
+controle = webdriver.ChromeOptions() # Configurar as opções do navegador
+controle.add_argument("--disable-gpu") # Evita possíveis gráficos
+controle.add_argument("--window-size=1920,1080") # Define uma resolução fixa
+# controle.add_argument("--headless") # Executa o navegador sem abrir a interface visual
 
 # Inicialização do WebDriver
-driver = webdriver.Chrome(service=service, options=options)
+driver = webdriver.Chrome(service=service, options=controle)
 
 # URL inicial
 url_base = 'https://www.kabum.com.br/espaco-gamer/cadeiras-gamer'
@@ -45,7 +46,7 @@ time.sleep(5) # Aguarda 5 segundos para garantir que a página carregue
 
 # Criar um dicionário vazio para armazenar as marcas e preços das cadeiras
 dic_produtos = {
-    "marca": [], 
+    "titulo": [], 
     "preco": [],
     }
 
@@ -64,29 +65,57 @@ while True:
         ec.presence_of_all_elements_located((By.CLASS_NAME, "productCard"))
     )
         print("Elementos encontrados com sucesso!")
-    except TimeoutException:
-        print("Tempo de espera excedido!")
+    except TimeoutException as te:
+        print("Tempo de espera excedido!", te)
     
-
     produtos = driver.find_elements(By.CLASS_NAME, "productCard")
 
     for produto in produtos:
         try:
-            nome = produto.find_element(By.CLASS_NAME, "nameCard").text.strip()
+            titulo = produto.find_element(By.CLASS_NAME, "nameCard").text.strip()
             preco = produto.find_element(By.CLASS_NAME, "priceCard").text.strip()
 
-            print(f"{nome}: {preco}")
+            print(f"{titulo}: {preco}")
 
-            dic_produtos["marca"].append(nome)
+            dic_produtos["titulo"].append(titulo)
             dic_produtos["preco"].append(preco)
-        except Exception:
-            print("Erro ao coletar dados", Exception)
-        
+        except Exception as e:
+            print("Erro ao coletar dados", e)
+    
+    # Encontrar botão para a próxima página
+    try:
 
-# Encontrar o acesso para a próxima página
-# Fechar o navegador
-# Criar DataFrame
-# Salvar os dados em .csv
+        botao_proximo = WebDriverWait(driver, 10).until(
+            ec.element_to_be_clickable((By.CLASS_NAME, "nextLink"))
+        )
+
+        if botao_proximo:
+            driver.execute_script("arguments[0].scrollIntoView();", botao_proximo)
+            time.sleep(1)
+
+            # Clicar no botão
+            driver.execute_script("arguments[0].click();", botao_proximo)
+            pagina += 1
+            print(f"Indo para a pagina {pagina}")
+            time.sleep(5)
+
+    except TimeoutException:
+        print("Você chegou na última página.")
+        break
+
+    except Exception as e:
+        print("Erro inesperado ao tentar ir para a próxima página:", e)
+
+# Fecha o navegador
+driver.quit()
+
+df = pd.DataFrame(dic_produtos)
+
+df.to_excel("cadeiras.xlsx", index=False)
+
+print(f"Arquivo 'cadeiras' salvo com sucesso! {len(df)} produtos armazenados!")
+
+
 
 
 
